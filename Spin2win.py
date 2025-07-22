@@ -22,10 +22,31 @@ group_digit_map = {group: i + 1 for i, group in enumerate("ABCDEFGHI")}
 st.set_page_config(page_title="Kaprekar Roulette Tracker", layout="wide")
 st.title("🎲 Spin2Win: Kaprekar Roulette Tracker")
 
-# Sidebar config
-# Sidebar config
+# Sidebar configuration
+st.sidebar.header("🎛 Session Controls")
+
+# Setup options
 spin_window = st.sidebar.selectbox("🧩 Spins used for Kaprekar seed", [1, 2, 3, 4])
 starting_bank = st.sidebar.number_input("🏦 Starting Bank (€)", min_value=100, value=500, step=50)
+
+# Initialize session state variables (only once)
+if "spins" not in st.session_state:
+    st.session_state.spins = []
+    st.session_state.kaprekar_log = []
+    st.session_state.fib_step = 0
+    st.session_state.bank = starting_bank
+    st.session_state.bank_history = [starting_bank]
+    st.session_state.bet_sizes = []
+
+# 🔄 Optional reset to start fresh
+if st.sidebar.button("🔄 Reset Tracker"):
+    st.session_state.spins = []
+    st.session_state.kaprekar_log = []
+    st.session_state.fib_step = 0
+    st.session_state.bank = starting_bank
+    st.session_state.bank_history = [starting_bank]
+    st.session_state.bet_sizes = []
+    st.experimental_rerun()
 
 # Initialize session state once
 if "spins" not in st.session_state:
