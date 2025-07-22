@@ -5,8 +5,18 @@ import random
 # ⚙️ Sidebar Controls
 st.sidebar.header("🎛 Session Controls")
 
-spin_window = st.sidebar.selectbox("🧩 Spins for Kaprekar seed", [1, 2, 3, 4])
+# 🏦 Starting bank input (saved separately)
 starting_bank = st.sidebar.number_input("🏦 Starting Bank (€)", min_value=100, value=500, step=50)
+
+# 🔄 Manual reset
+if st.sidebar.button("🔄 Manual Reset"):
+    st.session_state.spins = []
+    st.session_state.kaprekar_log = []
+    st.session_state.fib_step = 0
+    st.session_state.bank = starting_bank  # pulled directly at reset moment
+    st.session_state.bank_history = [starting_bank]
+    st.session_state.bet_sizes = []
+    st.experimental_rerun()
 
 # 🚀 Session Init
 if "spins" not in st.session_state:
