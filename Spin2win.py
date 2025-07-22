@@ -133,9 +133,3 @@ if len(st.session_state.spins) >= 36:
     group_series = df["Group"].value_counts().sort_values(ascending=False)
     st.write("Most frequent groups:")
     st.dataframe(group_series)
-
-## 🚀 How to Run Locally
-
-Save this code as `Spin2win.py` and launch with:
-```bash
-streamlit run spin2win.py
