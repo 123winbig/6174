@@ -1,9 +1,9 @@
 import streamlit as st
-import random
 import pandas as pd
 import matplotlib.pyplot as plt
+import random
 
-# Group-to-digit mapping based on wheel layout
+# Group-to-digit mapping
 roulette_groups = {
     "A": [32, 15, 19, 4],
     "B": [21, 2, 25, 17],
@@ -14,16 +14,16 @@ roulette_groups = {
     "G": [14, 31, 9, 22],
     "H": [18, 29, 7, 28],
     "I": [12, 35, 3, 26],
-    "Z": [0]  # Special zero group
+    "Z": [0]
 }
 group_digit_map = {group: i + 1 for i, group in enumerate("ABCDEFGHI")}
 
-# Streamlit UI
+# UI setup
 st.set_page_config(page_title="Kaprekar Roulette Tracker", layout="wide")
-st.title("🎲 Kaprekar Roulette Tracker")
+st.title("🎲 Spin2Win: Kaprekar Roulette Tracker")
 
-# Sidebar options
-spin_window = st.sidebar.selectbox("🧩 Spins used for new Kaprekar number", [1, 2, 3, 4])
+# Sidebar config
+spin_window = st.sidebar.selectbox("🧩 Spins used for Kaprekar seed", [1, 2, 3, 4])
 starting_bank = st.sidebar.number_input("🏦 Starting Bank (€)", min_value=100, value=500, step=50)
 
 if "spins" not in st.session_state:
@@ -37,14 +37,12 @@ if "spins" not in st.session_state:
 # Fibonacci sequence
 fib_seq = [1, 1, 2, 3, 5, 8, 13, 21, 34]
 
-# Detect group for a number
 def get_group(num):
     for group, nums in roulette_groups.items():
         if num in nums:
             return group
     return None
 
-# Create Kaprekar number from recent spins
 def build_kaprekar_input(spin_list):
     digits = []
     for s in spin_list:
@@ -57,11 +55,9 @@ def build_kaprekar_input(spin_list):
         digits.append(random.randint(1, 9))
     return digits[:4]
 
-# Mirror Mode transformation
 def apply_mirror_mode(digits):
     return digits[::-1]
 
-# Kaprekar transformation
 def kaprekar_transform(n):
     steps = []
     current = str(n).zfill(4)
@@ -75,43 +71,37 @@ def kaprekar_transform(n):
             break
     return steps
 
-# Run a spin and update
-if st.button("🎯 Generate New Spin"):
-    spin = random.randint(0, 36)
-    st.session_state.spins.append(spin)
+# Manual spin input
+spin_input = st.number_input("🎲 Enter Live Spin Result (0–36)", min_value=0, max_value=36)
+if st.button("📩 Submit Spin"):
+    st.session_state.spins.append(spin_input)
 
     if len(st.session_state.spins) >= spin_window:
         recent = st.session_state.spins[-spin_window:]
         digits = build_kaprekar_input(recent)
-
-        # Mirror if zero is present
         if 0 in recent:
             digits = apply_mirror_mode(digits)
 
-        num = int("".join(map(str, digits)))
-        steps = kaprekar_transform(num)
-        st.session_state.kaprekar_log.append((num, steps))
+        seed_num = int("".join(map(str, digits)))
+        steps = kaprekar_transform(seed_num)
+        st.session_state.kaprekar_log.append((seed_num, steps))
 
-        # Simulate a bet
+        # Simulated bet logic
         bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq) - 1)]
-        hit = spin in random.sample(range(1, 37), 12)  # Simulated coverage
+        hit = spin_input in random.sample(range(1, 37), 12)
         payout = bet_unit * 2 if hit else 0
         st.session_state.bank += payout - bet_unit
         st.session_state.bank_history.append(st.session_state.bank)
         st.session_state.bet_sizes.append(bet_unit)
+        st.session_state.fib_step = 0 if hit else st.session_state.fib_step + 1
 
-        if hit:
-            st.session_state.fib_step = 0
-        else:
-            st.session_state.fib_step += 1
-
-# Display stats
-st.subheader("🧮 Spin History")
+# Display limited spin history
+st.subheader("🎯 Recent Spins")
 df = pd.DataFrame({"Spin": st.session_state.spins})
 df["Group"] = df["Spin"].apply(get_group)
-st.dataframe(df.tail(20), use_container_width=True)
+st.dataframe(df.tail(4), use_container_width=True)
 
-# Kaprekar log
+# Show Kaprekar steps
 st.subheader("📜 Kaprekar Transformations")
 for entry in st.session_state.kaprekar_log[-5:]:
     seed, steps = entry
@@ -119,15 +109,15 @@ for entry in st.session_state.kaprekar_log[-5:]:
     for s in steps:
         st.write(f"{s[1]} - {s[2]} = {s[3]}")
 
-# Bank plot
-st.subheader("📊 Bank & Betting Overview")
+# Show bank progress
+st.subheader("📊 Bank & Bet Overview")
 fig, ax = plt.subplots()
 ax.plot(st.session_state.bank_history, label="Bank (€)", color="green")
 ax.plot(st.session_state.bet_sizes, label="Fibonacci Bet", linestyle='--', color="orange")
 ax.legend()
 st.pyplot(fig)
 
-# Prediction after 36 spins
+# Prediction view
 if len(st.session_state.spins) >= 36:
     st.subheader("🔮 Prediction Zone")
     group_series = df["Group"].value_counts().sort_values(ascending=False)
