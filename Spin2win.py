@@ -134,8 +134,6 @@ if len(st.session_state.spins) >= 36:
     st.write("Most frequent groups:")
     st.dataframe(group_series)
 
----
-
 ## 🚀 How to Run Locally
 
 Save this code as `kaprekar_roulette.py` and launch with:
