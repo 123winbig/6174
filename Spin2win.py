@@ -7,7 +7,7 @@ st.sidebar.header("🎛 Session Controls")
 spin_window = st.sidebar.selectbox("🧩 Spins for Kaprekar seed", [1, 2, 3, 4])
 starting_bank = st.sidebar.number_input("🏦 Starting Bank (€)", min_value=100, value=500, step=50)
 
-# 🧠 Initialize Session State
+# ✅ Reflect live bank update if session is fresh
 if "spins" not in st.session_state:
     st.session_state.spins = []
     st.session_state.kaprekar_log = []
@@ -15,8 +15,10 @@ if "spins" not in st.session_state:
     st.session_state.bank = starting_bank
     st.session_state.bank_history = [starting_bank]
     st.session_state.bet_sizes = []
+elif not st.session_state.spins and st.session_state.bank != starting_bank:
+    st.session_state.bank = starting_bank
 
-# 🔄 Manual Reset Button
+# 🔄 Manual Reset
 if st.sidebar.button("🔄 Manual Reset", key="manual_reset"):
     st.session_state.spins.clear()
     st.session_state.kaprekar_log.clear()
@@ -26,7 +28,7 @@ if st.sidebar.button("🔄 Manual Reset", key="manual_reset"):
     st.session_state.bet_sizes.clear()
     st.stop()
 
-# 🎰 Roulette Group Setup
+# 🎰 Roulette Setup
 roulette_groups = {
     "A": [32,15,19,4], "B": [21,2,25,17], "C": [34,6,27,13],
     "D": [36,11,30,8], "E": [23,10,5,24], "F": [16,33,1,20],
@@ -35,7 +37,7 @@ roulette_groups = {
 group_digit_map = {g: i+1 for i, g in enumerate("ABCDEFGHI")}
 fib_seq = [1, 1, 2, 3, 5, 8, 13, 21, 34]
 
-# 🧪 Functions
+# 🧪 Helper Functions
 def get_group(num):
     for g, nums in roulette_groups.items():
         if num in nums:
@@ -80,15 +82,15 @@ if st.button("📩 Submit Spin", key="submit_spin"):
     st.session_state.spins.append(spin_input)
 
     if len(st.session_state.spins) >= spin_window:
-        recent = st.session_state.spins[-spin_window:]
-        digits = build_kaprekar_input(recent)
-        if 0 in recent:
+        recent_spins = st.session_state.spins[-spin_window:]
+        digits = build_kaprekar_input(recent_spins)
+        if 0 in recent_spins:
             digits = apply_mirror_mode(digits)
 
         seed = int("".join(map(str, digits)))
         st.session_state.kaprekar_log.append((seed, digits))
 
-        # 🧮 Betting Logic
+        # 🧮 Bet Simulation
         bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
         hit = spin_input in random.sample(range(1, 37), 12)
         payout = bet_unit * 2 if hit else 0
