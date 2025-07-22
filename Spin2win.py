@@ -6,7 +6,7 @@ import random
 st.sidebar.header("🎛 Session Controls")
 spin_window = st.sidebar.selectbox("🧩 Spins for Kaprekar seed", [1, 2, 3, 4])
 starting_bank = st.sidebar.number_input("🏦 Starting Bank (€)", min_value=100, value=500, step=50)
-
+st.session_state.bank = starting_bank  # 🔧 Add this line!
 # 🧠 Session State
 if "spins" not in st.session_state:
     st.session_state.spins = []
