@@ -101,13 +101,11 @@ df = pd.DataFrame({"Spin": st.session_state.spins})
 df["Group"] = df["Spin"].apply(get_group)
 st.dataframe(df.tail(4), use_container_width=True)
 
-# Show Kaprekar steps
-st.subheader("📜 Kaprekar Transformations")
-for entry in st.session_state.kaprekar_log[-5:]:
-    seed, steps = entry
-    st.markdown(f"**Seed:** {seed}")
-    for s in steps:
-        st.write(f"{s[1]} - {s[2]} = {s[3]}")
+# Show latest Kaprekar seed only
+st.subheader("🧬 Current Kaprekar Seed")
+if st.session_state.kaprekar_log:
+    seed, _ = st.session_state.kaprekar_log[-1]
+    st.markdown(f"### 🎯 **Seed Number:** `{seed}`")
 
 # Show bank progress
 st.subheader("📊 Bank & Bet Overview")
