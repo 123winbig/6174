@@ -7,7 +7,7 @@ st.sidebar.header("🎛 Session Controls")
 spin_window = st.sidebar.selectbox("🧩 Spins for Kaprekar seed", [1, 2, 3, 4])
 starting_bank = st.sidebar.number_input("🏦 Starting Bank (€)", min_value=100, value=500, step=50)
 
-# ✅ Reflect live bank update if session is fresh
+# ✅ Sync Bank on Fresh Start
 if "spins" not in st.session_state:
     st.session_state.spins = []
     st.session_state.kaprekar_log = []
@@ -28,7 +28,7 @@ if st.sidebar.button("🔄 Manual Reset", key="manual_reset"):
     st.session_state.bet_sizes.clear()
     st.stop()
 
-# 🎰 Roulette Setup
+# 🎰 Roulette Definitions
 roulette_groups = {
     "A": [32,15,19,4], "B": [21,2,25,17], "C": [34,6,27,13],
     "D": [36,11,30,8], "E": [23,10,5,24], "F": [16,33,1,20],
@@ -37,7 +37,7 @@ roulette_groups = {
 group_digit_map = {g: i+1 for i, g in enumerate("ABCDEFGHI")}
 fib_seq = [1, 1, 2, 3, 5, 8, 13, 21, 34]
 
-# 🧪 Helper Functions
+# 🧠 Helper Functions
 def get_group(num):
     for g, nums in roulette_groups.items():
         if num in nums:
@@ -72,11 +72,11 @@ def kaprekar_transform(n):
             break
     return steps
 
-# 📱 Layout Setup
+# 🧩 Main Display
 st.set_page_config(page_title="Spin2Win: Kaprekar Roulette", layout="wide")
 st.title("🎲 Spin2Win Dashboard")
 
-# 🎯 Spin Input
+# 🎯 Live Spin Input
 spin_input = st.number_input("Enter Live Spin (0–36)", min_value=0, max_value=36)
 if st.button("📩 Submit Spin", key="submit_spin"):
     st.session_state.spins.append(spin_input)
@@ -90,7 +90,7 @@ if st.button("📩 Submit Spin", key="submit_spin"):
         seed = int("".join(map(str, digits)))
         st.session_state.kaprekar_log.append((seed, digits))
 
-        # 🧮 Bet Simulation
+        # 💵 Betting Logic
         bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
         hit = spin_input in random.sample(range(1, 37), 12)
         payout = bet_unit * 2 if hit else 0
@@ -113,7 +113,18 @@ if st.button("📩 Submit Spin", key="submit_spin"):
 st.subheader("💰 Bank Summary")
 st.markdown(f"### **€{st.session_state.bank}** remaining")
 
-# 🧬 Kaprekar Seed
+# 📐 Fibonacci Betting Progress
+st.subheader("📐 Fibonacci Betting Step")
+fib_steps = fib_seq[:len(fib_seq)]
+current_step = st.session_state.fib_step
+max_step = len(fib_steps) - 1
+progress = min(current_step / max_step, 1.0)
+
+st.progress(progress)
+st.markdown(f"**Step:** `{current_step}` of `{max_step}` → Bet Unit: `{fib_steps[min(current_step, max_step)]}`")
+st.caption(f"Full Sequence: {fib_steps}")
+
+# 🧬 Kaprekar Seed Info
 st.subheader("🧬 Kaprekar Seed")
 if st.session_state.kaprekar_log:
     seed, digits = st.session_state.kaprekar_log[-1]
@@ -121,7 +132,7 @@ if st.session_state.kaprekar_log:
     digit_values = [group_digit_map.get(g, 0) for g in digit_groups]
     st.markdown(f"**Seed:** `{seed}` → Groups: {', '.join(digit_groups)} → Digits: {', '.join(map(str, digit_values))}")
 
-# 🕹️ Last 4 Spins
+# 🕹️ Last 4 Spins Table
 st.subheader("🕹️ Last 4 Spins")
 df = pd.DataFrame({
     "Spin": st.session_state.spins[-4:],
