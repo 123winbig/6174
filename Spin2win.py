@@ -35,11 +35,11 @@ roulette_groups = {
 digit_to_group = {i: f"G{i}" for i in range(1, 13)}
 fib_seq = [1,1,2,3,5,8,13,21,34]
 
-# 🧠 Utility Functions
+# 🧠 Helper Functions
 def get_group(num):
-    for g, nums in roulette_groups.items():
+    for group, nums in roulette_groups.items():
         if num in nums:
-            return g
+            return group
     return None
 
 def build_kaprekar_input(spins):
@@ -56,34 +56,37 @@ def build_kaprekar_input(spins):
 st.set_page_config(page_title="Spin2Win — Fixed Seed Mode", layout="wide")
 st.title("🎲 Spin2Win — 36-Spin Kaprekar System")
 
-# 🎯 Spin Entry
+# 🎯 Spin Input
 spin_input = st.number_input("Enter Spin (0–36)", min_value=0, max_value=36)
 if st.button("📩 Submit Spin"):
     st.session_state.spins.append(spin_input)
     st.success(f"✅ Spin `{spin_input}` saved.")
 
-# 💬 Check for Seed Activation
+# 🚦 Seed Activation Condition
 kaprekar_ready = len(st.session_state.spins) >= 36
 if not kaprekar_ready:
     st.warning(f"🕓 {len(st.session_state.spins)}/36 spins entered. Waiting for full history to activate strategy.")
 else:
-    # Generate Seed Logic
+    # 🎰 Build Seed + Betting Groups
     recent_spins = st.session_state.spins[-36:]
     digits = build_kaprekar_input(recent_spins)
     seed = int("".join(map(str, digits)))
     unique_digits = sorted(set(digits))
     group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
     bet_nums = [num for g in group_labels for num in roulette_groups.get(g, [])]
-st.subheader("🧬 Kaprekar Seed & Betting Breakdown")
-st.markdown(f"**Seed:** `{seed}`")
-st.markdown(f"**Unique Digits:** `{unique_digits}` → Groups: {group_labels}")
-st.markdown(f"**Suggested Numbers to Bet:** {sorted(bet_nums)}")    
     st.session_state.kaprekar_log.append((seed, digits))
 
-    # ✅ HIT Logic — Only After Seed
+    # 🧬 Display Seed & Betting Advice
+    st.subheader("🧬 Kaprekar Seed & Betting Breakdown")
+    st.markdown(f"**Seed:** `{seed}`")
+    st.markdown(f"**Unique Digits:** `{unique_digits}` → Groups: {group_labels}")
+    st.markdown(f"**Suggested Numbers to Bet:** {sorted(bet_nums)}")
+
+    # 🎯 Accurate Hit Detection
     latest_spin = st.session_state.spins[-1]
     hit = latest_spin in bet_nums
 
+    # 💰 Payout Calculation
     bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
     payout = bet_unit * 2 if hit else 0
     st.session_state.bank += payout - bet_unit
@@ -102,13 +105,25 @@ st.markdown(f"**Suggested Numbers to Bet:** {sorted(bet_nums)}")
         st.info(f"❌ No match on `{latest_spin}`.")
         st.session_state.fib_step += 1
 
-# 💰 Bank Summary
+# 💰 Bank Overview
 st.subheader("💰 Bank Summary")
 st.markdown(f"### Bank: **€{st.session_state.bank}**")
 
 # 📐 Fibonacci Tracker
-st.subheader("📐 Fibonacci Progress")
+st.subheader("📐 Fibonacci Betting Progress")
 step = st.session_state.fib_step
 max_step = len(fib_seq) - 1
 st.progress(min(step / max_step, 1.0))
 st.markdown(f"**Step:** `{step}` of `{max_step}` → Bet Unit: `{fib_seq[min(step, max_step)]}`")
+
+# 🕹️ Spin History View
+st.subheader("🕹️ Spin History")
+spins = st.session_state.spins[-10:]
+groups = [get_group(s) for s in spins]
+digits = [int(g[1:]) if g and g.startswith("G") else 0 for g in groups]
+df = pd.DataFrame({
+    "Spin": spins,
+    "Group": groups,
+    "Group Number": digits
+})
+st.dataframe(df, use_container_width=True)
