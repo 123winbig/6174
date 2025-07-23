@@ -18,7 +18,7 @@ if "spins" not in st.session_state:
 elif not st.session_state.spins and st.session_state.bank != starting_bank:
     st.session_state.bank = starting_bank
 
-# 🔄 Manual Reset Button
+# 🔄 Manual Reset
 if st.sidebar.button("🔄 Manual Reset", key="manual_reset"):
     st.session_state.spins.clear()
     st.session_state.kaprekar_log.clear()
@@ -28,40 +28,43 @@ if st.sidebar.button("🔄 Manual Reset", key="manual_reset"):
     st.session_state.bet_sizes.clear()
     st.stop()
 
-# 🎰 Group Mapping
+# 🎰 Define 12 Groups + Zero
 roulette_groups = {
-    "A": [32,15,19,4], "B": [21,2,25,17], "C": [34,6,27,13],
-    "D": [36,11,30,8], "E": [23,10,5,24], "F": [16,33,1,20],
-    "G": [14,31,9,22], "H": [18,29,7,28], "I": [12,35,3,26], "Z": [0]
+    "G1": [1, 2, 3], "G2": [4, 5, 6], "G3": [7, 8, 9],
+    "G4": [10,11,12], "G5": [13,14,15], "G6": [16,17,18],
+    "G7": [19,20,21], "G8": [22,23,24], "G9": [25,26,27],
+    "G10": [28,29,30], "G11": [31,32,33], "G12": [34,35,36],
+    "G0": [0]
 }
-group_digit_map = {g: i+1 for i, g in enumerate("ABCDEFGHI")}
-fib_seq = [1, 1, 2, 3, 5, 8, 13, 21, 34]
 
-# 🧠 Helper Functions
+# Map digits (1–12) → group name
+digit_to_group = {i: f"G{i}" for i in range(1, 13)}
+
+fib_seq = [1,1,2,3,5,8,13,21,34]
+
+# 🧠 Helpers
 def get_group(num):
-    for g, nums in roulette_groups.items():
+    for group, nums in roulette_groups.items():
         if num in nums:
-            return g
+            return group
     return None
 
 def build_kaprekar_input(spins):
     digits = []
     for s in spins:
         g = get_group(s)
-        if g == "Z":
-            st.sidebar.warning("🪞 Mirror Mode Triggered")
-            continue
-        digits.append(group_digit_map.get(g, 0))
+        gnum = [k for k, v in digit_to_group.items() if v == g]
+        digits.append(gnum[0] if gnum else random.randint(1, 12))
     while len(digits) < 4:
-        digits.append(random.randint(1, 9))
+        digits.append(random.randint(1, 12))
     return digits[:4]
 
 def apply_mirror_mode(digits):
     return digits[::-1]
 
-# 🧩 Page Setup
-st.set_page_config(page_title="Spin2Win: Kaprekar Roulette", layout="wide")
-st.title("🎲 Spin2Win Dashboard")
+# 🧩 Layout
+st.set_page_config(page_title="Spin2Win: 12-Group Mode", layout="wide")
+st.title("🎲 Spin2Win — 12-Group Kaprekar Mode")
 
 # 🎯 Spin Input
 spin_input = st.number_input("Enter Live Spin (0–36)", min_value=0, max_value=36)
@@ -77,7 +80,6 @@ if st.button("📩 Submit Spin", key="submit_spin"):
         seed = int("".join(map(str, digits)))
         st.session_state.kaprekar_log.append((seed, digits))
 
-        # 💵 Betting Logic
         bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
         hit = spin_input in random.sample(range(1, 37), 12)
         payout = bet_unit * 2 if hit else 0
@@ -86,7 +88,7 @@ if st.button("📩 Submit Spin", key="submit_spin"):
         st.session_state.bet_sizes.append(bet_unit)
 
         if hit:
-            st.success("🎉 Hit! Resetting spins and bet progression...")
+            st.success("🎉 Hit! System resetting spin cycle...")
             st.session_state.spins.clear()
             st.session_state.kaprekar_log.clear()
             st.session_state.fib_step = 0
@@ -96,49 +98,49 @@ if st.button("📩 Submit Spin", key="submit_spin"):
         else:
             st.session_state.fib_step += 1
 
-# 💰 Bank Summary
+# 💰 Bank Display
 st.subheader("💰 Bank Summary")
 st.markdown(f"### **€{st.session_state.bank}** remaining")
 
 # 📐 Fibonacci Progression
 st.subheader("📐 Fibonacci Betting Progress")
-current = st.session_state.fib_step
+step = st.session_state.fib_step
 max_step = len(fib_seq) - 1
-progress = min(current / max_step, 1.0)
+progress = min(step / max_step, 1.0)
 st.progress(progress)
-st.markdown(f"**Step:** `{current}` of `{max_step}` → Bet Unit: `{fib_seq[min(current, max_step)]}`")
-st.caption(f"Full Sequence: {fib_seq}")
+st.markdown(f"**Step:** `{step}` of `{max_step}` → Bet Unit: `{fib_seq[min(step, max_step)]}`")
+st.caption(f"Sequence: {fib_seq}")
 
-# 🧬 Kaprekar Seed + Groups
-st.subheader("🧬 Kaprekar Seed")
+# 🧬 Kaprekar Seed Breakdown
+st.subheader("🧬 Kaprekar Seed Breakdown")
 if st.session_state.kaprekar_log:
     seed, digits = st.session_state.kaprekar_log[-1]
-    group_letters = [list(group_digit_map.keys())[list(group_digit_map.values()).index(d)] for d in digits]
-    st.markdown(f"**Seed:** `{seed}` → Groups: {', '.join(group_letters)} → Digits: {digits}")
+    group_labels = [digit_to_group.get(d, "G?") for d in digits]
+    st.markdown(f"**Seed:** `{seed}` → Digits → Groups: {group_labels}")
 
-    # 🎯 Suggested Bets Breakdown
+    # 🎯 Suggested Numbers to Bet
     st.subheader("🎯 Suggested Numbers to Bet")
-    bet_numbers = []
-    for group in group_letters:
-        bet_numbers.extend(roulette_groups.get(group, []))
-    st.markdown(f"**Groups:** {', '.join(group_letters)} → Numbers: {sorted(bet_numbers)}")
+    bet_nums = []
+    for g in group_labels:
+        bet_nums.extend(roulette_groups.get(g, []))
+    st.markdown(f"**Groups:** {', '.join(group_labels)}")
+    st.markdown(f"**Numbers:** {sorted(bet_nums)}")
 
-# 🕹️ Last 4 Spins View
+# 🕹️ Last 4 Spins
 st.subheader("🕹️ Last 4 Spins")
 spins = st.session_state.spins[-4:]
 groups = [get_group(s) for s in spins]
-digits = [group_digit_map.get(g, 0) for g in groups]
+g_digits = [int(g[1:]) if g and g.startswith("G") else 0 for g in groups]
 
 df = pd.DataFrame({
     "Spin": spins,
     "Group": groups,
-    "Digit": digits,
-    "Group Number": digits  # for extra clarity
+    "Group Number": g_digits
 })
 st.dataframe(df, use_container_width=True)
 
 # 🔮 Prediction Zone
 if len(st.session_state.spins) >= 36:
     st.subheader("🔮 Prediction Zone")
-    group_counts = pd.Series([get_group(s) for s in st.session_state.spins]).value_counts()
+    group_counts = pd.Series(groups).value_counts()
     st.dataframe(group_counts)
