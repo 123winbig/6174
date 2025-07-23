@@ -74,6 +74,10 @@ else:
     unique_digits = sorted(set(digits))
     group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
     bet_nums = [num for g in group_labels for num in roulette_groups.get(g, [])]
+st.subheader("🧬 Kaprekar Seed & Betting Breakdown")
+st.markdown(f"**Seed:** `{seed}`")
+st.markdown(f"**Unique Digits:** `{unique_digits}` → Groups: {group_labels}")
+st.markdown(f"**Suggested Numbers to Bet:** {sorted(bet_nums)}")    
     st.session_state.kaprekar_log.append((seed, digits))
 
     # ✅ HIT Logic — Only After Seed
