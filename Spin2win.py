@@ -58,9 +58,9 @@ def build_kaprekar_input(spins):
         digits.append(random.randint(1, 12))
     return digits[:4]
 
-# 🧩 Layout
-st.set_page_config(page_title="Spin2Win — Manual Seed Mode", layout="wide")
-st.title("🎲 Spin2Win — Manual Seed Generator (After 4 Spins)")
+# 🧩 Page Setup
+st.set_page_config(page_title="Spin2Win — Controlled Flow", layout="wide")
+st.title("🎲 Spin2Win — Manual Seed & Hit Check")
 
 # 🎯 Spin Input
 spin_input = st.number_input("Enter Spin (0–36)", min_value=0, max_value=36)
@@ -68,7 +68,7 @@ if st.button("📩 Submit Spin"):
     st.session_state.spins.append(spin_input)
     st.success(f"✅ Spin `{spin_input}` saved.")
 
-# ⚡ Manual Seed Trigger (after 4 spins)
+# ⚡ Manual Seed Generation (after 4 spins)
 if len(st.session_state.spins) >= 4:
     if st.button("🧬 Generate Kaprekar Seed"):
         digits = build_kaprekar_input(st.session_state.spins)
@@ -81,11 +81,11 @@ if len(st.session_state.spins) >= 4:
         st.session_state.kaprekar_log.append((seed, digits))
         st.session_state.bet_nums = bet_nums
 
-        st.success("🎯 Seed Generated! You may now check for hits.")
+        st.success("🧠 Seed generated! You may now check if your latest spin is a hit.")
 
 # 🧬 Display Seed Info
 if st.session_state.seed_generated and st.session_state.kaprekar_log:
-    st.subheader("🧬 Kaprekar Seed & Betting Breakdown")
+    st.subheader("🧬 Kaprekar Seed & Suggested Bets")
     seed, digits = st.session_state.kaprekar_log[-1]
     unique_digits = sorted(set(digits))
     group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
@@ -93,36 +93,37 @@ if st.session_state.seed_generated and st.session_state.kaprekar_log:
     st.markdown(f"**Unique Digits:** `{unique_digits}` → Groups: {group_labels}")
     st.markdown(f"**Suggested Numbers to Bet:** {sorted(st.session_state.bet_nums)}")
 
-    # 🎯 Check Hit Against Last Spin
-    latest_spin = st.session_state.spins[-1]
-    hit = latest_spin in st.session_state.bet_nums
+    # 🎯 Manual Hit Check
+    if st.button("🔍 Check Last Spin for Hit"):
+        latest_spin = st.session_state.spins[-1]
+        hit = latest_spin in st.session_state.bet_nums
 
-    bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
-    payout = bet_unit * 2 if hit else 0
-    st.session_state.bank += payout - bet_unit
-    st.session_state.bank_history.append(st.session_state.bank)
-    st.session_state.bet_sizes.append(bet_unit)
+        bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
+        payout = bet_unit * 2 if hit else 0
+        st.session_state.bank += payout - bet_unit
+        st.session_state.bank_history.append(st.session_state.bank)
+        st.session_state.bet_sizes.append(bet_unit)
 
-    if hit:
-        st.success(f"🎯 HIT! Spin `{latest_spin}` matched your bets.")
-        st.session_state.spins.clear()
-        st.session_state.fib_step = 0
-        st.session_state.kaprekar_log.clear()
-        st.session_state.bet_sizes.clear()
-        st.session_state.bank_history = [st.session_state.bank]
-        st.session_state.seed_generated = False
-        st.session_state.bet_nums = []
-        st.stop()
-    else:
-        st.info(f"❌ No match on `{latest_spin}`.")
-        st.session_state.fib_step += 1
+        if hit:
+            st.success(f"🎯 HIT! Spin `{latest_spin}` matched your bets.")
+            st.session_state.spins.clear()
+            st.session_state.fib_step = 0
+            st.session_state.kaprekar_log.clear()
+            st.session_state.bet_sizes.clear()
+            st.session_state.bank_history = [st.session_state.bank]
+            st.session_state.seed_generated = False
+            st.session_state.bet_nums = []
+            st.stop()
+        else:
+            st.info(f"❌ No match on `{latest_spin}`.")
+            st.session_state.fib_step += 1
 
-# 💰 Bank Overview
+# 💰 Bank Summary
 st.subheader("💰 Bank Summary")
 st.markdown(f"### Bank: **€{st.session_state.bank}**")
 
 # 📐 Fibonacci Progress
-st.subheader("📐 Fibonacci Betting Progress")
+st.subheader("📐 Fibonacci Progress")
 step = st.session_state.fib_step
 max_step = len(fib_seq) - 1
 st.progress(min(step / max_step, 1.0))
