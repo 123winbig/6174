@@ -36,10 +36,7 @@ roulette_groups = {
     "G10": [28,29,30], "G11": [31,32,33], "G12": [34,35,36],
     "G0": [0]
 }
-
-# Map digits (1–12) → group name
 digit_to_group = {i: f"G{i}" for i in range(1, 13)}
-
 fib_seq = [1,1,2,3,5,8,13,21,34]
 
 # 🧠 Helpers
@@ -68,6 +65,8 @@ st.title("🎲 Spin2Win — 12-Group Kaprekar Mode")
 
 # 🎯 Spin Input
 spin_input = st.number_input("Enter Live Spin (0–36)", min_value=0, max_value=36)
+bet_nums = []
+
 if st.button("📩 Submit Spin", key="submit_spin"):
     st.session_state.spins.append(spin_input)
 
@@ -80,15 +79,25 @@ if st.button("📩 Submit Spin", key="submit_spin"):
         seed = int("".join(map(str, digits)))
         st.session_state.kaprekar_log.append((seed, digits))
 
+        # Remove duplicate digits for unique group mapping
+        unique_digits = list(sorted(set(digits)))
+        group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
+        bet_nums = []
+        for g in group_labels:
+            bet_nums.extend(roulette_groups.get(g, []))
+
+        # ✅ Accurate Hit Detection (no randomness)
+        hit = spin_input in bet_nums
+
+        # 💵 Betting Outcome
         bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
-        hit = spin_input in random.sample(range(1, 37), 12)
         payout = bet_unit * 2 if hit else 0
         st.session_state.bank += payout - bet_unit
         st.session_state.bank_history.append(st.session_state.bank)
         st.session_state.bet_sizes.append(bet_unit)
 
         if hit:
-            st.success("🎉 Hit! System resetting spin cycle...")
+            st.success("🎉 HIT! You matched a suggested number.")
             st.session_state.spins.clear()
             st.session_state.kaprekar_log.clear()
             st.session_state.fib_step = 0
@@ -115,8 +124,9 @@ st.caption(f"Sequence: {fib_seq}")
 st.subheader("🧬 Kaprekar Seed Breakdown")
 if st.session_state.kaprekar_log:
     seed, digits = st.session_state.kaprekar_log[-1]
-    group_labels = [digit_to_group.get(d, "G?") for d in digits]
-    st.markdown(f"**Seed:** `{seed}` → Digits → Groups: {group_labels}")
+    unique_digits = list(sorted(set(digits)))
+    group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
+    st.markdown(f"**Seed:** `{seed}` → Unique Digits → Groups: {group_labels}")
 
     # 🎯 Suggested Numbers to Bet
     st.subheader("🎯 Suggested Numbers to Bet")
