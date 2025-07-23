@@ -81,3 +81,75 @@ if st.button("📩 Submit Spin", key="submit_spin"):
         unique_digits = sorted(set(digits))
         group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
         bet_nums = []
+        for g in group_labels:
+            bet_nums.extend(roulette_groups.get(g, []))
+
+        # ✅ Accurate Hit Detection
+        hit = spin_input in bet_nums
+
+        # 💵 Calculate outcome
+        bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
+        payout = bet_unit * 2 if hit else 0
+        st.session_state.bank += payout - bet_unit
+        st.session_state.bank_history.append(st.session_state.bank)
+        st.session_state.bet_sizes.append(bet_unit)
+
+        if hit:
+            st.success(f"🎯 HIT! Spin `{spin_input}` matched your bets.")
+            st.session_state.spins.clear()
+            st.session_state.kaprekar_log.clear()
+            st.session_state.fib_step = 0
+            st.session_state.bank_history = [st.session_state.bank]
+            st.session_state.bet_sizes.clear()
+            st.stop()
+        else:
+            st.session_state.fib_step += 1
+    else:
+        st.warning(f"🕓 {len(st.session_state.spins)} spin(s) entered — waiting for {spin_window} to build seed.")
+
+# 💰 Bank Summary
+st.subheader("💰 Bank Summary")
+st.markdown(f"### **€{st.session_state.bank}** remaining")
+
+# 📐 Fibonacci Progress
+st.subheader("📐 Fibonacci Betting Progress")
+step = st.session_state.fib_step
+max_step = len(fib_seq) - 1
+progress = min(step / max_step, 1.0)
+st.progress(progress)
+st.markdown(f"**Step:** `{step}` of `{max_step}` → Bet Unit: `{fib_seq[min(step, max_step)]}`")
+st.caption(f"Sequence: {fib_seq}")
+
+# 🧬 Kaprekar Seed Breakdown
+if st.session_state.kaprekar_log:
+    st.subheader("🧬 Kaprekar Seed Breakdown")
+    seed, digits = st.session_state.kaprekar_log[-1]
+    unique_digits = sorted(set(digits))
+    group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
+    st.markdown(f"**Seed:** `{seed}` → Unique Digits → Groups: {group_labels}")
+
+    # 🎯 Suggested Bets
+    st.subheader("🎯 Suggested Numbers to Bet")
+    bet_nums = []
+    for g in group_labels:
+        bet_nums.extend(roulette_groups.get(g, []))
+    st.markdown(f"**Groups:** {', '.join(group_labels)}")
+    st.markdown(f"**Numbers:** {sorted(bet_nums)}")
+
+# 🕹️ Last 4 Spins
+st.subheader("🕹️ Last 4 Spins")
+spins = st.session_state.spins[-4:]
+groups = [get_group(s) for s in spins]
+g_digits = [int(g[1:]) if g and g.startswith("G") else 0 for g in groups]
+df = pd.DataFrame({
+    "Spin": spins,
+    "Group": groups,
+    "Group Number": g_digits
+})
+st.dataframe(df, use_container_width=True)
+
+# 🔮 Prediction Zone
+if len(st.session_state.spins) >= 36:
+    st.subheader("🔮 Prediction Zone")
+    group_counts = pd.Series(groups).value_counts()
+    st.dataframe(group_counts)
