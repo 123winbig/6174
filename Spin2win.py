@@ -107,4 +107,4 @@ st.subheader("📐 Fibonacci Progress")
 step = st.session_state.fib_step
 max_step = len(fib_seq) - 1
 st.progress(min(step / max_step, 1.0))
-st.markdown(f"**Step:** `{step}` of `{max_step
+st.markdown(f"**Step:** `{step}` of `{max_step}` → Bet Unit: `{fib_seq[min(step, max_step)]}`")
