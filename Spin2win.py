@@ -1,3 +1,5 @@
+import streamlit as st
+import pandas as pd
 import random
 
 # 🎡 Group layout based on European roulette wheel
@@ -8,34 +10,31 @@ roulette_groups = {
 }
 
 # 🔁 Reverse map: number → group digit
-number_to_digit = {}
-for group, numbers in roulette_groups.items():
-    digit = int(group[1:]) if group != "G0" else 0
-    for num in numbers:
-        number_to_digit[num] = digit
+number_to_digit = {
+    num: int(group[1:]) if group != "G0" else 0
+    for group, nums in roulette_groups.items()
+    for num in nums
+}
 
-# 🎲 Your actual live spins
-live_spins = [
-    33,19,36,17,11,35,3,29,0,9,18,29,0,13,14,10,36,14,6,33,16,34,9,28,24,11,20,
-    29,2,31,35,11,3,26,18,22,28,14,3,11,29,26,18,27,14,4,4,36,16,1,10,24,33,10,
-    9,12,12,11,34,1,33,0,22,30,21,35,22,28,8,4,36,24,19,25,16,3,18,19,4,15,2,20,
-    4,24,17,12,21,3,21,29,12,1,17,9,11,24,18,35,25,15,14,27,13,14,22,17,34,0,24,
-    36,26,22,35,9,17,1,24,8,25,12,27,16,15,15,30,31,34,28,9,35,3,29,12,21,10,2,
-    20,11,17,32,11,29,9,15
-]
+# 🎲 User input from sidebar
+st.sidebar.header("🎛️ Betting Parameters")
+base_unit = st.sidebar.number_input("Base Unit (€)", min_value=1, value=2, step=1)
+bankroll = st.sidebar.number_input("Starting Bankroll (€)", min_value=100, value=1000, step=50)
 
-# 💰 Betting parameters
-base_unit = 2
-bankroll = 1000
+# 📊 App title
+st.title("🎰 Spin2Win Roulette Simulator")
+
+# 📦 Live spins (static for now, could be expanded to live input later)
+live_spins = random.choices(list(number_to_digit.keys()), k=120)
+
+# 📊 Initialize
 current_unit = base_unit
 loss_streak = 0
-lowest_bankroll = bankroll
-highest_bankroll = bankroll
-
-# 📊 Performance tracking
+lowest_bankroll = highest_bankroll = bankroll
 spin_history = []
 seeds = []
-total_hits = total_misses = 0
+hit_log = []
+net_log = []
 
 def build_seed(spins):
     digits = [number_to_digit.get(s, 0) for s in spins[-12:]]
@@ -48,23 +47,23 @@ def build_seed(spins):
     return seed, bet_numbers
 
 def apply_bet(spin, bets):
-    global bankroll, loss_streak, current_unit, total_hits, total_misses
+    global bankroll, loss_streak, current_unit
     if spin in bets:
         win = current_unit * 36
         bankroll += win
         loss_streak = 0
+        net = win - (current_unit * len(bets))
         current_unit = base_unit
-        total_hits += 1
-        return True, win - (current_unit * len(bets))
+        return True, net
     else:
         bankroll -= current_unit * len(bets)
         loss_streak += 1
-        total_misses += 1
         if loss_streak >= 2:
             current_unit *= 2
-        return False, -(current_unit * len(bets))
+        net = -(current_unit * len(bets))
+        return False, net
 
-# 🌀 Simulation
+# 🌀 Simulation loop
 for idx, spin in enumerate(live_spins):
     spin_history.append(spin)
 
@@ -75,16 +74,28 @@ for idx, spin in enumerate(live_spins):
 
         current_seed, current_bets = seeds[-1]
         hit, net = apply_bet(spin, current_bets)
-        bankroll_change = f"{'+' if net >= 0 else ''}€{net}"
-        print(f"🎰 Spin: {spin} → {'HIT' if hit else 'MISS'} | {bankroll_change} | Bankroll: €{bankroll}")
+        hit_log.append(hit)
+        net_log.append(net)
         lowest_bankroll = min(lowest_bankroll, bankroll)
         highest_bankroll = max(highest_bankroll, bankroll)
 
-# 📦 Final Results
-print("\n📊 FINAL STRATEGY SUMMARY")
-print(f"Total Spins Evaluated: {len(live_spins)}")
-print(f"Total Hits: {total_hits} | Total Misses: {total_misses}")
-print(f"Lowest Bankroll: €{lowest_bankroll}")
-print(f"Highest Bankroll: €{highest_bankroll}")
-print(f"Final Bankroll: €{bankroll}")
-print(f"Net Profit: {'+' if bankroll - 1000 >= 0 else ''}€{bankroll - 1000}")
+# 📈 Chart and summary
+df = pd.DataFrame({
+    "Spin": spin_history,
+    "Hit": ["✅" if h else "❌" for h in hit_log],
+    "Net": net_log
+})
+
+st.subheader("📊 Bankroll Over Time")
+bankroll_values = [bankroll - sum(net_log[:i]) for i in range(len(net_log)+1)]
+st.line_chart(bankroll_values)
+
+st.subheader("📋 Strategy Summary")
+st.write(f"Total Spins: {len(spin_history)}")
+st.write(f"Total Hits: {sum(hit_log)}")
+st.write(f"Total Misses: {len(hit_log) - sum(hit_log)}")
+st.write(f"Lowest Bankroll: €{lowest_bankroll}")
+st.write(f"Highest Bankroll: €{highest_bankroll}")
+st.write(f"Final Bankroll: €{bankroll}")
+net_profit = bankroll - st.sidebar.number_input("Initial Bankroll for Summary", value=1000)
+st.write(f"Net Profit: {'+' if net_profit >= 0 else ''}€{net_profit}")
