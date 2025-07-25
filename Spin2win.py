@@ -71,8 +71,14 @@ for idx, spin in enumerate(live_spins):
         if idx % 12 == 0:
             seed, predictions = build_seed(spin_history)
             seeds.append((seed, predictions))
-
-        current_seed, current_bets = seeds[-1]
+            if seeds:
+    current_seed, current_bets = seeds[-1]
+    hit, net = apply_bet(spin, current_bets)
+    hit_log.append(hit)
+    net_log.append(net)
+    lowest_bankroll = min(lowest_bankroll, bankroll)
+    highest_bankroll = max(highest_bankroll, bankroll)
+current_seed, current_bets = seeds[-1]
         hit, net = apply_bet(spin, current_bets)
         hit_log.append(hit)
         net_log.append(net)
