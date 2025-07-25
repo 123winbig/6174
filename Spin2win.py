@@ -1,106 +1,86 @@
 import streamlit as st
-import pandas as pd
-import random
 
-# 🎡 Group layout based on European roulette wheel
+# 🎡 Roulette group layout (European wheel)
 roulette_groups = {
     "G1": [32, 15, 19], "G2": [4, 21, 2], "G3": [25, 17, 34], "G4": [6, 27, 13],
     "G5": [36, 11, 30], "G6": [8, 23, 10], "G7": [5, 24, 16], "G8": [33, 1, 20],
     "G9": [14, 31, 9], "G10": [22, 18, 29], "G11": [7, 28, 12], "G12": [35, 3, 26], "G0": [0]
 }
 
-# 🔁 Reverse map: number → group digit
+# 🔁 Map each number to its group digit
 number_to_digit = {
     num: int(group[1:]) if group != "G0" else 0
     for group, nums in roulette_groups.items()
     for num in nums
 }
 
-# 🎛️ Sidebar user inputs
-st.sidebar.header("Betting Parameters 🎛️")
+# 🎛️ Sidebar settings
+st.sidebar.header("Betting Parameters")
 base_unit = st.sidebar.number_input("Base Unit (€)", min_value=1, value=2, step=1)
 initial_bankroll = st.sidebar.number_input("Starting Bankroll (€)", min_value=100, value=1000, step=50)
 
-# 📊 App header
-st.title("🎰 Spin2Win Roulette Simulator")
+# 📦 Session state
+if "spins" not in st.session_state:
+    st.session_state.spins = []
+    st.session_state.bankroll = initial_bankroll
+    st.session_state.unit = base_unit
+    st.session_state.loss_streak = 0
+    st.session_state.last_bets = []
+    st.session_state.hit_log = []
 
-# 📦 Random spin sequence
-live_spins = random.choices(list(number_to_digit.keys()), k=120)
+# 🧾 Spin Input
+st.title("🎰 Live Roulette Betting Predictor")
+new_spin = st.number_input("Enter latest spin result:", min_value=0, max_value=36, step=1)
 
-# 🧮 Initialize variables
-bankroll = initial_bankroll
-current_unit = base_unit
-loss_streak = 0
-lowest_bankroll = highest_bankroll = bankroll
-spin_history = []
-seeds = []
-hit_log = []
-net_log = []
+if st.button("➕ Add Spin"):
+    st.session_state.spins.append(int(new_spin))
 
-# 🛠️ Helper functions
-def build_seed(spins):
-    digits = [number_to_digit.get(s, 0) for s in spins[-12:]]
+    # Apply bet if prediction is available
+    if st.session_state.last_bets:
+        if new_spin in st.session_state.last_bets:
+            win = st.session_state.unit * 36
+            net = win - (st.session_state.unit * len(st.session_state.last_bets))
+            st.session_state.bankroll += win
+            st.session_state.unit = base_unit
+            st.session_state.loss_streak = 0
+            st.session_state.hit_log.append(("✅", net))
+        else:
+            loss = st.session_state.unit * len(st.session_state.last_bets)
+            st.session_state.bankroll -= loss
+            st.session_state.loss_streak += 1
+            net = -loss
+            st.session_state.hit_log.append(("❌", net))
+            if st.session_state.loss_streak >= 2:
+                st.session_state.unit *= 2
+
+# 🧬 Generate Prediction
+if len(st.session_state.spins) >= 12:
+    digits = [number_to_digit.get(s, 0) for s in st.session_state.spins[-12:]]
     seed = int("".join(map(str, digits[-4:])))
-    unique_digits = set(digits)
+    unique_digits = sorted(set(digits))
     bet_numbers = []
     for d in unique_digits:
         if d != 0:
             bet_numbers.extend(roulette_groups[f"G{d}"])
-    return seed, bet_numbers
+    st.session_state.last_bets = bet_numbers
 
-def apply_bet(spin, bets):
-    global bankroll, loss_streak, current_unit
-    if spin in bets:
-        win = current_unit * 36
-        bankroll += win
-        net = win - (current_unit * len(bets))
-        loss_streak = 0
-        current_unit = base_unit
-        return True, net
-    else:
-        bankroll -= current_unit * len(bets)
-        net = -(current_unit * len(bets))
-        loss_streak += 1
-        if loss_streak >= 2:
-            current_unit *= 2
-        return False, net
+    # 🔮 Display Prediction Panel
+    st.subheader("🔮 Betting Prediction")
+    st.write(f"**Seed Number**: `{seed}`")
+    st.write(f"**Group Digits Used**: `{unique_digits}`")
+    st.write(f"**Roulette Numbers Being Bet On**: `{sorted(bet_numbers)}`")
 
-# 🌀 Simulation loop
-for idx, spin in enumerate(live_spins):
-    spin_history.append(spin)
+# 📊 Summary Panel
+st.subheader("📊 Bankroll Summary")
+st.write(f"Spins Entered: {len(st.session_state.spins)}")
+st.write(f"Current Bankroll: €{st.session_state.bankroll}")
+st.write(f"Current Bet Size: €{st.session_state.unit}")
+hits = sum(1 for result, _ in st.session_state.hit_log if result == "✅")
+misses = sum(1 for result, _ in st.session_state.hit_log if result == "❌")
+st.write(f"Total Hits: {hits}")
+st.write(f"Total Misses: {misses}")
 
-    if len(spin_history) >= 12:
-        if idx % 12 == 0:
-            seed, predictions = build_seed(spin_history)
-            seeds.append((seed, predictions))
-
-        if seeds:
-            current_seed, current_bets = seeds[-1]
-            hit, net = apply_bet(spin, current_bets)
-            hit_log.append(hit)
-            net_log.append(net)
-            lowest_bankroll = min(lowest_bankroll, bankroll)
-            highest_bankroll = max(highest_bankroll, bankroll)
-
-# 📊 Output results
-df = pd.DataFrame({
-    "Spin": spin_history[:len(net_log)],
-    "Result": ["✅" if h else "❌" for h in hit_log],
-    "Net (€)": net_log
-})
-
-st.subheader("📈 Bankroll Over Time")
-bankroll_progress = [initial_bankroll]
-for change in net_log:
-    bankroll_progress.append(bankroll_progress[-1] + change)
-st.line_chart(bankroll_progress)
-
-st.subheader("📋 Strategy Summary")
-st.write(f"Total Spins: {len(spin_history)}")
-st.write(f"Total Hits: {sum(hit_log)}")
-st.write(f"Total Misses: {len(hit_log) - sum(hit_log)}")
-st.write(f"Lowest Bankroll: €{lowest_bankroll}")
-st.write(f"Highest Bankroll: €{highest_bankroll}")
-st.write(f"Final Bankroll: €{bankroll}")
-net_profit = bankroll - initial_bankroll
-st.write(f"Net Profit: {'+' if net_profit >= 0 else ''}€{net_profit}")
+if st.session_state.hit_log:
+    st.subheader("📋 Recent Bet Results")
+    for idx, (result, net) in enumerate(reversed(st.session_state.hit_log[-10:]), 1):
+        st.write(f"{idx}. {result} | Net: {'+' if net >=0 else ''}€{net}")
