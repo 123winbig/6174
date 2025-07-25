@@ -16,18 +16,19 @@ number_to_digit = {
     for num in nums
 }
 
-# 🎲 User input from sidebar
-st.sidebar.header("🎛️ Betting Parameters")
+# 🎛️ Sidebar user inputs
+st.sidebar.header("Betting Parameters 🎛️")
 base_unit = st.sidebar.number_input("Base Unit (€)", min_value=1, value=2, step=1)
-bankroll = st.sidebar.number_input("Starting Bankroll (€)", min_value=100, value=1000, step=50)
+initial_bankroll = st.sidebar.number_input("Starting Bankroll (€)", min_value=100, value=1000, step=50)
 
-# 📊 App title
+# 📊 App header
 st.title("🎰 Spin2Win Roulette Simulator")
 
-# 📦 Live spins (static for now, could be expanded to live input later)
+# 📦 Random spin sequence
 live_spins = random.choices(list(number_to_digit.keys()), k=120)
 
-# 📊 Initialize
+# 🧮 Initialize variables
+bankroll = initial_bankroll
 current_unit = base_unit
 loss_streak = 0
 lowest_bankroll = highest_bankroll = bankroll
@@ -36,6 +37,7 @@ seeds = []
 hit_log = []
 net_log = []
 
+# 🛠️ Helper functions
 def build_seed(spins):
     digits = [number_to_digit.get(s, 0) for s in spins[-12:]]
     seed = int("".join(map(str, digits[-4:])))
@@ -51,16 +53,16 @@ def apply_bet(spin, bets):
     if spin in bets:
         win = current_unit * 36
         bankroll += win
-        loss_streak = 0
         net = win - (current_unit * len(bets))
+        loss_streak = 0
         current_unit = base_unit
         return True, net
     else:
         bankroll -= current_unit * len(bets)
+        net = -(current_unit * len(bets))
         loss_streak += 1
         if loss_streak >= 2:
             current_unit *= 2
-        net = -(current_unit * len(bets))
         return False, net
 
 # 🌀 Simulation loop
@@ -71,30 +73,27 @@ for idx, spin in enumerate(live_spins):
         if idx % 12 == 0:
             seed, predictions = build_seed(spin_history)
             seeds.append((seed, predictions))
-            if seeds:
-    current_seed, current_bets = seeds[-1]
-    hit, net = apply_bet(spin, current_bets)
-    hit_log.append(hit)
-    net_log.append(net)
-    lowest_bankroll = min(lowest_bankroll, bankroll)
-    highest_bankroll = max(highest_bankroll, bankroll)
-current_seed, current_bets = seeds[-1]
-        hit, net = apply_bet(spin, current_bets)
-        hit_log.append(hit)
-        net_log.append(net)
-        lowest_bankroll = min(lowest_bankroll, bankroll)
-        highest_bankroll = max(highest_bankroll, bankroll)
 
-# 📈 Chart and summary
+        if seeds:
+            current_seed, current_bets = seeds[-1]
+            hit, net = apply_bet(spin, current_bets)
+            hit_log.append(hit)
+            net_log.append(net)
+            lowest_bankroll = min(lowest_bankroll, bankroll)
+            highest_bankroll = max(highest_bankroll, bankroll)
+
+# 📊 Output results
 df = pd.DataFrame({
-    "Spin": spin_history,
-    "Hit": ["✅" if h else "❌" for h in hit_log],
-    "Net": net_log
+    "Spin": spin_history[:len(net_log)],
+    "Result": ["✅" if h else "❌" for h in hit_log],
+    "Net (€)": net_log
 })
 
-st.subheader("📊 Bankroll Over Time")
-bankroll_values = [bankroll - sum(net_log[:i]) for i in range(len(net_log)+1)]
-st.line_chart(bankroll_values)
+st.subheader("📈 Bankroll Over Time")
+bankroll_progress = [initial_bankroll]
+for change in net_log:
+    bankroll_progress.append(bankroll_progress[-1] + change)
+st.line_chart(bankroll_progress)
 
 st.subheader("📋 Strategy Summary")
 st.write(f"Total Spins: {len(spin_history)}")
@@ -103,5 +102,5 @@ st.write(f"Total Misses: {len(hit_log) - sum(hit_log)}")
 st.write(f"Lowest Bankroll: €{lowest_bankroll}")
 st.write(f"Highest Bankroll: €{highest_bankroll}")
 st.write(f"Final Bankroll: €{bankroll}")
-net_profit = bankroll - st.sidebar.number_input("Initial Bankroll for Summary", value=1000)
+net_profit = bankroll - initial_bankroll
 st.write(f"Net Profit: {'+' if net_profit >= 0 else ''}€{net_profit}")
