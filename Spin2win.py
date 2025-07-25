@@ -1,32 +1,6 @@
-import streamlit as st
-import pandas as pd
 import random
 
-# 🎛 Sidebar Controls
-starting_bank = st.sidebar.number_input("🏦 Starting Bank (€)", min_value=100, value=500, step=50)
-
-# ✅ Session Initialization
-if "spins" not in st.session_state:
-    st.session_state.spins = []
-    st.session_state.fib_step = 0
-    st.session_state.bank = starting_bank
-    st.session_state.kaprekar_log = []
-    st.session_state.bet_sizes = []
-    st.session_state.bank_history = [starting_bank]
-elif not st.session_state.spins and st.session_state.bank != starting_bank:
-    st.session_state.bank = starting_bank
-
-# 🔄 Manual Reset
-if st.sidebar.button("🔄 Manual Reset"):
-    st.session_state.spins.clear()
-    st.session_state.fib_step = 0
-    st.session_state.bank = starting_bank
-    st.session_state.kaprekar_log.clear()
-    st.session_state.bet_sizes.clear()
-    st.session_state.bank_history = [starting_bank]
-    st.stop()
-
-# 🎡 Realistic Roulette Wheel Grouping (European-style)
+# 🎡 Group mapping based on European wheel layout
 roulette_groups = {
     "G1": [32, 15, 19],
     "G2": [4, 21, 2],
@@ -42,93 +16,98 @@ roulette_groups = {
     "G12": [35, 3, 26],
     "G0": [0]
 }
-digit_to_group = {i: f"G{i}" for i in range(1, 13)}
-fib_seq = [1, 1, 2, 3, 5, 8, 13, 21, 34]
 
-# 🧠 Utility Functions
-def get_group(num):
-    for g, nums in roulette_groups.items():
-        if num in nums:
-            return g
-    return None
-
-def build_kaprekar_input(spins):
-    digits = []
-    for s in spins[-4:]:
-        g = get_group(s)
-        gnum = [k for k, v in digit_to_group.items() if v == g]
-        digits.append(gnum[0] if gnum else random.randint(1, 12))
-    while len(digits) < 4:
-        digits.append(random.randint(1, 12))
-    return digits[:4]
-
-# 🧩 Page Setup
-st.set_page_config(page_title="Spin2Win — Real Wheel Kaprekar", layout="wide")
-st.title("🎲 Spin2Win — Live Kaprekar Strategy (Real Wheel)")
-
-# 🎯 Spin Input
-spin_input = st.number_input("Enter Spin (0–36)", min_value=0, max_value=36)
-if st.button("📩 Submit Spin"):
-    st.session_state.spins.append(spin_input)
-    st.success(f"✅ Spin `{spin_input}` recorded.")
-
-    # 🧬 Trigger Seed Generation
-    if len(st.session_state.spins) >= 4:
-        digits = build_kaprekar_input(st.session_state.spins)
-        seed = int("".join(map(str, digits)))
-        unique_digits = sorted(set(digits))
-        group_labels = [digit_to_group.get(d, "G?") for d in unique_digits]
-        bet_nums = [num for g in group_labels for num in roulette_groups.get(g, [])]
-        st.session_state.kaprekar_log.append((seed, digits))
-
-        # 🎯 Hit Evaluation
-        latest_spin = st.session_state.spins[-1]
-        hit = latest_spin in bet_nums
-        bet_unit = fib_seq[min(st.session_state.fib_step, len(fib_seq)-1)]
-        payout = bet_unit * 2 if hit else 0
-        st.session_state.bank += payout - bet_unit
-        st.session_state.bank_history.append(st.session_state.bank)
-        st.session_state.bet_sizes.append(bet_unit)
-
-        if hit:
-            st.success(f"🎯 HIT! Spin `{latest_spin}` matched the suggested numbers.")
-            st.session_state.spins.clear()
-            st.session_state.fib_step = 0
-            st.session_state.kaprekar_log.clear()
-            st.session_state.bet_sizes.clear()
-            st.session_state.bank_history = [st.session_state.bank]
-            st.stop()
-        else:
-            st.info(f"❌ No match on `{latest_spin}`.")
-            st.session_state.fib_step += 1
-
-        # 📊 Display Seed Info
-        st.subheader("🧬 Kaprekar Seed & Strategy")
-        st.markdown(f"**Seed:** `{seed}`")
-        st.markdown(f"**Unique Digits:** `{unique_digits}` → Groups: {group_labels}")
-        st.markdown(f"**Suggested Numbers to Bet:** {sorted(bet_nums)}")
+# 📦 Reverse mapping: number → group digit (1–12)
+number_to_digit = {}
+for key, values in roulette_groups.items():
+    if key != "G0":
+        digit = int(key[1:])
+        for num in values:
+            number_to_digit[num] = digit
     else:
-        st.warning("🕓 Waiting for 4 spins to activate Kaprekar strategy...")
+        for num in values:
+            number_to_digit[num] = 0
 
-# 💰 Bank Summary
-st.subheader("💰 Bank Status")
-st.markdown(f"### Bank: **€{st.session_state.bank}**")
+# 💰 Manual bank setup
+bankroll = 500  # Set initial bankroll
+bet_unit = 2    # Fixed bet per number
 
-# 📐 Fibonacci Progression
-st.subheader("📐 Betting Progress (Fibonacci)")
-step = st.session_state.fib_step
-max_step = len(fib_seq) - 1
-st.progress(min(step / max_step, 1.0))
-st.markdown(f"**Step:** `{step}` of `{max_step}` → Bet Unit: `{fib_seq[min(step, max_step)]}`")
+# ⏱ Seed & evaluation tracking
+spin_history = []
+seeds = []
+total_hits = total_misses = total_profit = 0
 
-# 🕹️ Spin History
-st.subheader("🕹️ Recent Spins")
-spins = st.session_state.spins[-10:]
-groups = [get_group(s) for s in spins]
-group_nums = [int(g[1:]) if g and g.startswith("G") else None for g in groups]
-df = pd.DataFrame({
-    "Spin": spins,
-    "Group": groups,
-    "Group #": group_nums
-})
-st.dataframe(df, use_container_width=True)
+def map_seed_from_spins(spins):
+    digits = [number_to_digit.get(num, 0) for num in spins[-12:]]
+    seed = int("".join(map(str, digits[-4:])))
+    unique_digits = set(digits)
+    bet_numbers = []
+    for group_key in [f"G{d}" for d in unique_digits if d != 0]:
+        bet_numbers.extend(roulette_groups.get(group_key, []))
+    return seed, bet_numbers
+
+def evaluate_spin(spin, bet_numbers):
+    global bankroll, total_hits, total_misses, total_profit
+    if spin in bet_numbers:
+        payout = bet_unit * 36
+        bankroll += payout
+        total_profit += (payout - bet_unit)
+        total_hits += 1
+        return True, payout - bet_unit
+    else:
+        bankroll -= bet_unit
+        total_profit -= bet_unit
+        total_misses += 1
+        return False, -bet_unit
+
+def display_seed_stats(seed_num, bet_numbers, hits, misses, profit):
+    total = hits + misses
+    win_rate = (hits / total) * 100 if total else 0
+    print("\n📦 Seed Summary Box")
+    print(f"Seed #: {seed_num}")
+    print(f"Predicted: {bet_numbers}")
+    print(f"Hits: {hits}   Misses: {misses}")
+    print(f"Win Rate: {win_rate:.1f}%")
+    print(f"Profit: {'+' if profit >= 0 else ''}€{profit}")
+
+# 🌀 Main simulation loop
+def simulate_spin(spin):
+    spin_history.append(spin)
+
+    if len(spin_history) >= 12:
+        if len(seeds) == 0 or len(spin_history) % 12 == 0:
+            seed_num, predicted_bets = map_seed_from_spins(spin_history)
+            seeds.append({
+                'seed': seed_num,
+                'bets': predicted_bets,
+                'hits': 0,
+                'misses': 0,
+                'profit': 0
+            })
+
+        current_seed = seeds[-1]
+        hit, profit = evaluate_spin(spin, current_seed['bets'])
+        if hit:
+            current_seed['hits'] += 1
+        else:
+            current_seed['misses'] += 1
+        current_seed['profit'] += profit
+        display_seed_stats(current_seed['seed'], current_seed['bets'],
+                           current_seed['hits'], current_seed['misses'],
+                           current_seed['profit'])
+
+    print(f"\n🎯 Spin Entered: {spin}")
+    print(f"💰 Bankroll: €{bankroll}")
+
+# 👇 Example usage
+sample_spins = [32, 4, 25, 6, 36, 8, 5, 33, 14, 22, 7, 35, 13, 19, 21, 17]
+
+for s in sample_spins:
+    simulate_spin(s)
+
+# 📊 Final Stats
+print("\n🔚 FINAL RESULTS")
+print(f"Total Spins: {len(spin_history)}")
+print(f"Hits: {total_hits}  Misses: {total_misses}")
+print(f"Final Bankroll: €{bankroll}")
+print(f"Net Profit: {'+' if total_profit >=0 else ''}€{total_profit}")
